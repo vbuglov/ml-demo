@@ -19,7 +19,7 @@ const Layout = () => {
 
   return (
     <div className="min-h-screen">
-      <div className="text-center fixed mb-20 left-0 right-0 flex justify-center pt-4">
+      <div className="text-center fixed bg-white left-0 right-0 flex justify-center pt-4">
         <div className="flex max-w-[500px] w-full px-4 justify-between items-center border-b border-gray-200 pb-4">
           <span className="text-2xl">ML DEMO</span>
           <button onClick={handleChangeOpen} className="text-gray-800 text-xl focus:outline-none">

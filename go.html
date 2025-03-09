@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>ml5 BodyPose (MoveNet) Example without p5.js</title>
+    <!-- Подключаем ml5.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ml5@latest/dist/ml5.min.js"></script>
+    <style>
+        /* Просто для удобства – убираем отступы по умолчанию. */
+        body, html {
+            margin: 0;
+            padding: 0;
+        }
+        /* Прячем видео, чтобы рисовать его вручную на canvas. */
+        #video {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<!-- Видеопоток от веб-камеры -->
+<video id="video" width="640" height="480" autoplay playsinline></video>
+<!-- Canvas, на который будет выводиться изображение и "скелет" -->
+<canvas id="canvas" width="640" height="480"></canvas>
+
+<script>
+  let video;
+  let canvas;
+  let ctx;
+  let bodyPose;
+  let poses = [];
+  let connections = [];
+
+  // Основная функция инициализации
+  async function setup() {
+    video = document.getElementById('video');
+    canvas = document.getElementById('canvas');
+    ctx = canvas.getContext('2d');
+
+    // Запрашиваем доступ к камере
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    video.srcObject = stream;
+    await video.play();
+
+    // Загружаем модель MoveNet через ml5
+    bodyPose = ml5.bodyPose(modelReady);
+  }
+
+  // Колбэк по завершении загрузки модели
+  function modelReady() {
+    // Получаем список связей между точками для отрисовки "скелета"
+    connections = bodyPose.getSkeleton();
+    // Запускаем непрерывное распознавание поз
+    bodyPose.detectStart(video, gotPoses);
+    // Запускаем цикл рисования
+    requestAnimationFrame(draw);
+  }
+
+  // Колбэк, который вызывается при каждом новом результате распознавания
+  function gotPoses(results) {
+    poses = results;
+  }
+
+  // Цикл анимации: рисует видео и скелет
+  function draw() {
+    // Рисуем кадр с видео на canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Рисуем "скелет" (линии между ключевыми точками)
+    for (let i = 0; i < poses.length; i++) {
+      const pose = poses[i];
+      for (let j = 0; j < connections.length; j++) {
+        const [pointAIndex, pointBIndex] = connections[j];
+        const pointA = pose.keypoints[pointAIndex];
+        const pointB = pose.keypoints[pointBIndex];
+
+        // Рисуем линию, если уверенность (confidence) обеих точек > 0.2
+        if (pointA.confidence > 0.2 && pointB.confidence > 0.2) {
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(pointA.x, pointA.y);
+          ctx.lineTo(pointB.x, pointB.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Рисуем сами ключевые точки
+    for (let i = 0; i < poses.length; i++) {
+      const pose = poses[i];
+      for (let j = 0; j < pose.keypoints.length; j++) {
+        const keypoint = pose.keypoints[j];
+        // Рисуем кружок, если уверенность > 0.2
+        if (keypoint.confidence > 0.2) {
+          ctx.fillStyle = 'green';
+          ctx.beginPath();
+          ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Снова вызываем анимацию
+    requestAnimationFrame(draw);
+  }
+
+  // Запускаем всё
+  setup();
+</script>
+</body>
+</html>
