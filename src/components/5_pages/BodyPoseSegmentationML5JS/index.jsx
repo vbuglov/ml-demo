@@ -13,63 +13,29 @@ let isStarted = false;
 let video;
 let canvas;
 let ctx;
-let bodyPose;
-let poses = [];
-let connections = [];
+let bodySegmentation;
 let isWorking = false;
+let segmentation = [];
 
 function draw() {
   if (!isWorking) return null;
-  // Рисуем кадр с видео на canvas
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  // Рисуем "скелет" (линии между ключевыми точками)
-  for (let i = 0; i < poses.length; i++) {
-    const pose = poses[i];
-    for (let j = 0; j < connections.length; j++) {
-      const [pointAIndex, pointBIndex] = connections[j];
-      const pointA = pose.keypoints[pointAIndex];
-      const pointB = pose.keypoints[pointBIndex];
-
-      // Рисуем линию, если уверенность (confidence) обеих точек > 0.2
-      if (pointA.confidence > 0.2 && pointB.confidence > 0.2) {
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(pointA.x, pointA.y);
-        ctx.lineTo(pointB.x, pointB.y);
-        ctx.stroke();
-      }
-    }
+  if (segmentation) {
+    ctx.drawImage(segmentation.mask, 0, 0, canvas.width, canvas.height);
   }
 
-  // Рисуем сами ключевые точки
-  for (let i = 0; i < poses.length; i++) {
-    const pose = poses[i];
-    for (let j = 0; j < pose.keypoints.length; j++) {
-      const keypoint = pose.keypoints[j];
-      // Рисуем кружок, если уверенность > 0.2
-      if (keypoint.confidence > 0.2) {
-        ctx.fillStyle = 'green';
-        ctx.beginPath();
-        ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-    }
-  }
-
-  // Снова вызываем анимацию
   requestAnimationFrame(draw);
 }
 
-function gotPoses(results) {
-  poses = results;
+function gotResults(results) {
+  segmentation = results;
 }
 
 const startDraw = (setStatus) => {
   isWorking = true;
   requestAnimationFrame(draw);
-  bodyPose.detectStart(video, gotPoses);
+  bodySegmentation.detectStart(video, gotResults);
   setStatus(STATUSES.DRAWING);
 };
 
@@ -87,6 +53,10 @@ const startDrowPose = (setStatus) => {
   loadML5(() => {
     setStatus(STATUSES.MODEL_LOADING);
 
+    let options = {
+      maskType: 'parts'
+    };
+
     // Основная функция инициализации
     async function setup() {
       video = document.getElementById('video');
@@ -98,12 +68,7 @@ const startDrowPose = (setStatus) => {
       await video.play();
 
       // Загружаем модель MoveNet через ml5
-      bodyPose = window.ml5.bodyPose(modelReady);
-    }
-
-    // Колбэк по завершении загрузки модели
-    function modelReady() {
-      connections = bodyPose.getSkeleton();
+      bodySegmentation = window.ml5.bodySegmentation('BodyPix', options);
       startDraw(setStatus);
     }
 
