@@ -75,6 +75,7 @@ const startDraw = (setStatus) => {
 
 const stopDraw = (setStatus) => {
   isWorking = false;
+  bodyPose.detectStop();
   setStatus(STATUSES.DRAWING_STOP);
 };
 
@@ -103,6 +104,7 @@ const startDrowPose = (setStatus) => {
 
     // Колбэк по завершении загрузки модели
     function modelReady() {
+      setStatus(STATUSES.DRAWING);
       connections = bodyPose.getSkeleton();
       startDraw(setStatus);
     }
@@ -111,7 +113,7 @@ const startDrowPose = (setStatus) => {
   });
 };
 
-const ImageClassifier = () => {
+const BodyPoseML5JS = () => {
   const canvasRef = useRef();
   const videoRef = useRef();
   const [status, setStatus] = useState(STATUSES.ML5_LOADING);
@@ -119,7 +121,9 @@ const ImageClassifier = () => {
   useEffect(() => {
     startDrowPose(setStatus);
     return () => {
-      stopDraw(setStatus);
+      if (isWorking) {
+        stopDraw(setStatus);
+      }
     };
   }, []);
 
@@ -163,4 +167,4 @@ const ImageClassifier = () => {
   );
 };
 
-export default ImageClassifier;
+export default BodyPoseML5JS;

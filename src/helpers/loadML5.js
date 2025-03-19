@@ -4,7 +4,7 @@ const loadML5 = (onLoad = () => {}) => {
   if (!window.ml5 && !isLoading) {
     isLoading = true;
     const script = document.createElement('script');
-    script.src = 'https://unpkg.com/ml5@1/dist/ml5.js';
+    script.src = 'https://unpkg.com/ml5@1/dist/ml5.min.js';
     script.async = true;
 
     // Append the script to the body
