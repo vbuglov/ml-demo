@@ -2,7 +2,8 @@
 FROM node:18-slim AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --no-optional
+# Удаляем package-lock.json, если он существует, и устанавливаем зависимости
+RUN rm -f package-lock.json && npm install --no-optional
 COPY . .
 RUN npm run build
 
