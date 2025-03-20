@@ -68,7 +68,7 @@ const Layout = () => {
           <ul className="space-y-2 font-medium">
             {routes.map(({ title, icon, path }) => {
               return (
-                <li key={path}>
+                <li onClick={() => setIsOpen(false)} key={path}>
                   <Link
                     to={path}
                     href="#"
