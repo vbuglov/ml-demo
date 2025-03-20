@@ -10,16 +10,20 @@ COPY . .
 
 RUN yarn build
 
-FROM node:20 AS serve
+# ---- Этап запуска (serve) на Nginx ----
+FROM nginx:stable-alpine
 
-# 8. Устанавливаем небольшую утилиту для сервировки статических файлов
-RUN npm install -g serve
+# Удаляем дефолтный конфиг, чтобы использовать свой
+RUN rm /etc/nginx/conf.d/default.conf
 
-# 9. Копируем директорию dist из этапа build
-COPY --from=build /app/dist /app/dist
+# Копируем свой конфиг, который слушает порт 5000
+COPY default.conf /etc/nginx/conf.d/default.conf
 
-# 10. Открываем порт 5000
+# Копируем собранные файлы из build-этапа
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Открываем в контейнере 5000-й порт
 EXPOSE 5000
 
-# 11. Запускаем наше React-приложение на порту 5000
-CMD ["serve", "-s", "dist", "-l", "5000"]
+# Запускаем Nginx в форёground-режиме
+CMD ["nginx", "-g", "daemon off;"]
