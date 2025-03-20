@@ -12,6 +12,7 @@ export default defineConfig({
     // basicSsl(),
     VitePWA({
       workbox: {
+        maximumFileSizeToCacheInBytes: 8000000,
         runtimeCaching: [
           {
             urlPattern: ({ url }) =>
