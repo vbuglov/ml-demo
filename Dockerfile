@@ -1,19 +1,33 @@
 # Stage 1: Сборка приложения
-FROM node:20-slim AS builder
+FROM node:20 AS builder
+
 WORKDIR /app
-# Копируем файлы зависимостей
+
+# Копируем package.json и package-lock.json (если есть)
 COPY package*.json ./
-# Удаляем package-lock.json, чтобы избежать проблем с опциональными зависимостями,
-# и устанавливаем зависимости без опциональных пакетов
-RUN rm -f package-lock.json && npm install --no-optional
-# Копируем весь исходный код
+
+# Устанавливаем зависимости
+RUN npm install
+
+# Копируем исходный код приложения
 COPY . .
-# Собираем приложение (по умолчанию Vite кладёт сборку в папку dist)
+
+# Собираем проект (убедитесь, что в package.json определён скрипт "build", например "vite build")
 RUN npm run build
 
-# Stage 2: Запуск через Nginx
-FROM nginx:stable-alpine
-# Копируем собранные файлы в директорию, которую обслуживает Nginx
+# Stage 2: Обслуживание с помощью nginx
+FROM nginx:alpine
+
+# Удаляем дефолтный конфиг nginx
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Копируем собранные файлы из builder-стадии в стандартную директорию nginx
 COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
+
+# Копируем кастомный конфигурационный файл nginx, который настраивает сервер на порт 5000
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Открываем порт 5000
+EXPOSE 5000
+
 CMD ["nginx", "-g", "daemon off;"]
