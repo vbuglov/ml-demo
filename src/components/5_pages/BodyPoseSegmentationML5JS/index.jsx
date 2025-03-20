@@ -63,10 +63,7 @@ function ImageClassifier() {
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    if (
-      videoRef.current &&
-      videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA
-    ) {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     }
 
@@ -150,9 +147,7 @@ function ImageClassifier() {
         setVideoDevices(videoInputDevices);
 
         // Пытаемся найти фронтальную по названию (просто пример, может не сработать во всех браузерах)
-        const frontCam = videoInputDevices.find((d) =>
-          d.label.toLowerCase().includes('front')
-        );
+        const frontCam = videoInputDevices.find((d) => d.label.toLowerCase().includes('front'));
 
         // Если есть "фронталка" – выбираем её, иначе берём первую
         if (frontCam) {
@@ -178,7 +173,6 @@ function ImageClassifier() {
         stopDraw();
       }
     };
-    // eslint-disable-next-line
   }, [selectedDeviceId]);
 
   // Обработка выбора из списка
@@ -221,8 +215,7 @@ function ImageClassifier() {
             <button
               onClick={stopDraw}
               type="button"
-              className="text-white !bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
-            >
+              className="text-white !bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
               Остановить
             </button>
           )}
@@ -232,8 +225,7 @@ function ImageClassifier() {
             <button
               onClick={startDraw}
               type="button"
-              className="text-white !bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
-            >
+              className="text-white !bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
               Запустить
             </button>
           )}
