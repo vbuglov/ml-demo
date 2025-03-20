@@ -13,6 +13,11 @@ RUN yarn build
 # ---- Этап запуска (serve) на Nginx ----
 FROM nginx:stable-alpine
 
+RUN mkdir /etc/nginx/certs
+
+COPY nginx.crt /etc/nginx/certs/nginx.crt
+COPY nginx.key /etc/nginx/certs/nginx.key
+
 # Удаляем дефолтный конфиг, чтобы использовать свой
 RUN rm /etc/nginx/conf.d/default.conf
 
@@ -23,7 +28,7 @@ COPY default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Открываем в контейнере 5000-й порт
-EXPOSE 443
+EXPOSE 5000
 
 # Запускаем Nginx в форёground-режиме
 CMD ["nginx", "-g", "daemon off;"]
