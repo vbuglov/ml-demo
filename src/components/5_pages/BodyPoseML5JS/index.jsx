@@ -128,10 +128,12 @@ const BodyPoseML5JS = () => {
 
   // Первичный запуск (один раз при маунте)
   useEffect(() => {
-    if (!isStartedRef.current) {
-      isStartedRef.current = true;
-      setup();
-    }
+    setTimeout(() => {
+      if (!isStartedRef.current) {
+        isStartedRef.current = true;
+        setup();
+      }
+    });
 
     // При размонтировании остановим отрисовку
     return () => {
@@ -149,9 +151,7 @@ const BodyPoseML5JS = () => {
     setCameraFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
   }, [stopDraw, STATUSES.MODEL_LOADING]);
 
-  // При каждом изменении cameraFacingMode - пересоздаём видеопоток и модель
   useEffect(() => {
-    // Если initVideoAndModel ещё не был создан (до первой загрузки), пропускаем.
     if (isStartedRef.current) {
       initVideoAndModel();
     }
