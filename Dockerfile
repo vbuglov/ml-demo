@@ -1,32 +1,32 @@
-# --- ЭТАП 1: СБОРКА ПРИЛОЖЕНИЯ ---
+# 1. Используем официальный образ Node.js версии 20 для сборки
 FROM node:20 AS build
 
-# Устанавливаем рабочую директорию
+# 2. Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем package.json и package-lock.json (если есть)
+# 3. Копируем package.json и package-lock.json (если есть) в контейнер
 COPY package*.json ./
 
-# Устанавливаем зависимости
+# 4. Устанавливаем зависимости
 RUN npm install
 
-# Копируем оставшиеся файлы проекта
+# 5. Копируем остальной исходный код в контейнер
 COPY . .
 
-# Сборка проекта
+# 6. Создаем сборку
 RUN npm run build
 
-# --- ЭТАП 2: СЕРВИС НА NGINX ---
-FROM nginx:stable
+# 7. Переключаемся на продакшн-слой
+FROM node:20 AS serve
 
-# Копируем свой конфиг Nginx (с настройкой на порт 5000)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# 8. Устанавливаем небольшую утилиту для сервировки статических файлов
+RUN npm install -g serve
 
-# Копируем собранное приложение из этапа сборки
-COPY --from=build /app/dist /usr/share/nginx/html
+# 9. Копируем директорию dist из этапа build
+COPY --from=build /app/dist /app/dist
 
-# Открываем порт 5000
+# 10. Открываем порт 5000
 EXPOSE 5000
 
-# Запускаем Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# 11. Запускаем наше React-приложение на порту 5000
+CMD ["serve", "-s", "dist", "-l", "5000"]
