@@ -23,7 +23,7 @@ COPY default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Открываем в контейнере 5000-й порт
-EXPOSE 5000
+EXPOSE 443
 
 # Запускаем Nginx в форёground-режиме
 CMD ["nginx", "-g", "daemon off;"]
