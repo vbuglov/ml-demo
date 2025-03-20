@@ -165,10 +165,10 @@ const BodyPoseML5JS = () => {
           className="hidden"
           id="video"
           width="320"
-          height="400"
+          height="480"
           autoPlay
           playsInline></video>
-        <canvas ref={canvasRef} id="canvas" width="320" height="400"></canvas>
+        <canvas ref={canvasRef} id="canvas" width="320" height="480"></canvas>
       </div>
 
       <div className="mb-4">{status}</div>
