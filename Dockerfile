@@ -8,7 +8,7 @@ RUN yarn
 
 COPY . .
 
-RUN npm run build
+RUN yarn build
 
 FROM node:20 AS serve
 
