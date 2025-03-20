@@ -1,175 +1,140 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useEffect, useState, useRef, useCallback} from 'react';
+// Если у вас есть собственная реализация loadML5.js, импортируйте её так:
+import loadML5 from '../../../helpers/loadML5.js';
+// Иначе можно прописать напрямую – тогда нужно будет заменить loadML5 соответствующим кодом.
 
-// Ширина и высота холста/видео
-const VIDEO_WIDTH = 300;
+const VIDEO_WIDTH = 320;
 const VIDEO_HEIGHT = 480;
 
-// Статусы, чтобы информировать пользователя о процессе
 const STATUSES = {
-    ML5_LOADING: 'Загрузка ml5.js...',
-    MODEL_LOADING: 'Запуск FaceMesh...',
+    ML5_LOADING: 'Загрузка ml5.js',
+    MODEL_LOADING: 'Запуск ml5.js',
     DRAWING: 'Цикл рисования запущен',
-    DRAWING_STOP: 'Цикл рисования остановлен',
-    ERROR: 'Ошибка'
+    DRAWING_STOP: 'Цикл рисования остановлен'
 };
-
-// Функция для динамической загрузки ml5 из CDN (можно изменить на локальный файл).
-function loadML5() {
-    return new Promise((resolve, reject) => {
-        // Проверим, не загружен ли уже скрипт
-        if (window.ml5) {
-            return resolve(window.ml5);
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/ml5@latest/dist/ml5.min.js';
-        script.async = true;
-        script.onload = () => {
-            if (window.ml5) {
-                resolve(window.ml5);
-            } else {
-                reject(new Error('Не удалось загрузить ml5.js'));
-            }
-        };
-        script.onerror = () => reject(new Error('Ошибка загрузки скрипта ml5.js'));
-        document.body.appendChild(script);
-    });
-}
 
 const ML5FaceMesh = () => {
     const [status, setStatus] = useState(STATUSES.ML5_LOADING);
-    const [facingMode, setFacingMode] = useState('user'); // "user" = фронтальная камера, "environment" = основная (задняя)
+    const [facingMode, setFacingMode] = useState('user'); // выбор камеры ('user' или 'environment')
 
-
-    // Рефы вместо глобальных переменных
+    // Ссылки, чтобы хранить объекты и не перерисовывать компонент:
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const faceMeshRef = useRef(null);
-    const isWorkingRef = useRef(false);
-    const facesRef = useRef([]);
+    const facesRef = useRef([]); // здесь храним массив лиц, найденных faceMesh
+    const isWorkingRef = useRef(false); // флаг «идёт ли сейчас рисование?»
 
-    // Запуск детекции лица
-    const detectStart = () => {
-        faceMeshRef.current?.detectStart(videoRef.current, (results) => {
-            facesRef.current = results || [];
-        });
+    // Параметры для faceMesh:
+    const options = {
+        maxFaces: 1,
+        refineLandmarks: false,
+        flipHorizontal: false
     };
 
-    // Основной цикл отрисовки
+    // Функция, которую ml5 вызывает при каждом новом фрейме распознавания:
+    const gotFaces = (results) => {
+        facesRef.current = results;
+    };
+
+    // Основной цикл отрисовки canvas:
     const drawFrame = () => {
-        if (!isWorkingRef.current) return;
+        if (!isWorkingRef.current) {
+            return;
+        }
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
+        const video = videoRef.current;
+
+        if (!canvas || !ctx || !video) return;
 
         ctx.save();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Отрисовываем видео
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        // Нарисовать кадр с веб-камеры
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Отрисовываем ключевые точки на лице
-        const faces = facesRef.current;
-        for (let i = 0; i < faces.length; i++) {
-            const face = faces[i];
-            for (let j = 0; j < face.keypoints.length; j++) {
-                const { x, y } = face.keypoints[j];
+        // Отрисовать точки лица поверх
+        facesRef.current.forEach((face) => {
+            face.keypoints.forEach((kp) => {
                 ctx.beginPath();
-                ctx.arc(x, y, 2, 0, 2 * Math.PI);
+                ctx.arc(kp.x, kp.y, 2, 0, 2 * Math.PI);
                 ctx.fill();
-            }
-        }
+            });
+        });
 
         ctx.restore();
         requestAnimationFrame(drawFrame);
     };
 
-    const startDrawing = () => {
+    // Запуск faceMesh и цикла отрисовки
+    const startDraw = () => {
+        if (!videoRef.current || !faceMeshRef.current) return;
+
+        // Начинаем рисовать:
         isWorkingRef.current = true;
         setStatus(STATUSES.DRAWING);
-        detectStart();
+
+        // Запустить детектирование:
+        faceMeshRef.current.detectStart(videoRef.current, gotFaces);
+
+        // Запустить цикл рисования:
         requestAnimationFrame(drawFrame);
     };
 
-    const stopDrawing = () => {
+    // Остановка faceMesh и цикла отрисовки
+    const stopDraw = () => {
+        if (faceMeshRef.current) {
+            faceMeshRef.current.detectStop();
+        }
         isWorkingRef.current = false;
         setStatus(STATUSES.DRAWING_STOP);
-        faceMeshRef.current?.detectStop();
     };
 
-    // Инициализация видео с выбранной камеры
+    // Функция инициализации камеры:
     const initVideo = async () => {
-        try {
-            // Отключаем поток, если он уже был запущен (при смене facingMode)
-            if (videoRef.current && videoRef.current.srcObject) {
-                const oldStream = videoRef.current.srcObject;
-                if (oldStream && oldStream.getTracks) {
-                    oldStream.getTracks().forEach((track) => track.stop());
-                }
-            }
+        const video = videoRef.current;
+        if (!video) return;
 
-            const constraints = {
+        try {
+            // Запрашиваем стрим
+            const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: VIDEO_WIDTH,
                     height: VIDEO_HEIGHT,
-                    facingMode: facingMode // "user" или "environment"
+                    facingMode: facingMode // 'user' или 'environment'
                 }
-            };
+            });
 
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            videoRef.current.srcObject = stream;
-
-            // Ждём, пока метаданные загрузятся, после чего запускаем всё остальное
-            videoRef.current.onloadedmetadata = async () => {
-                videoRef.current.play();
-                try {
-                    setStatus(STATUSES.ML5_LOADING);
-                    const ml5 = await loadML5();
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                video.play();
+                // Как только видео готово, загружаем ml5, если ещё не загружен
+                loadML5(() => {
                     setStatus(STATUSES.MODEL_LOADING);
-
-                    // Инициализация faceMesh
-                    faceMeshRef.current = ml5.faceMesh(
-                      {
-                          maxFaces: 1,
-                          refineLandmarks: false,
-                          flipHorizontal: false
-                      },
-                      () => {
-                          // Когда модель готова, запускаем отрисовку
-                          startDrawing();
-                      }
-                    );
-                } catch (err) {
-                    console.error(err);
-                    setStatus(STATUSES.ERROR);
-                }
+                    // Инициализируем faceMesh
+                    faceMeshRef.current = window.ml5.faceMesh(options, () => {
+                        // Когда модель готова, запускаем всё
+                        startDraw();
+                    });
+                });
             };
         } catch (err) {
-            console.error('Ошибка доступа к веб-камере:', err);
-            setStatus(STATUSES.ERROR);
+            alert('Ошибка доступа к веб-камере: ' + err);
         }
     };
 
-    const handleSwitchCamera = useCallback(() => {
-        stopDrawing();
-        // После остановки переключаем режим и пересоздаём стрим
-        setStatus(STATUSES.MODEL_LOADING);
-        setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
-    }, [stopDrawing, STATUSES.MODEL_LOADING]);
-
-    // При первом рендере и при смене facingMode — инициализируем видео.
+    // Эффект, который при загрузке компонента и при смене facingMode
+    // перезапускает камеру и faceMesh
     useEffect(() => {
-        if (!navigator.mediaDevices?.getUserMedia) {
-            alert('getUserMedia не поддерживается вашим браузером.');
-            setStatus(STATUSES.ERROR);
-            return;
-        }
+        stopDraw(); // на всякий случай останавливаем предыдущий стрим, если был
         initVideo();
 
-        // При размонтаже останавливаем рисование и потоки
+        // Очищаемся при размонтировании:
         return () => {
-            stopDrawing();
-            if (videoRef.current && videoRef.current.srcObject) {
+            stopDraw();
+            // Останавливаем стрим, если есть
+            if (videoRef.current?.srcObject) {
                 const tracks = videoRef.current.srcObject.getTracks();
                 tracks.forEach((track) => track.stop());
             }
@@ -177,58 +142,75 @@ const ML5FaceMesh = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [facingMode]);
 
+    const handleSwitchCamera = useCallback(() => {
+        stopDraw();
+        // После остановки переключаем режим и пересоздаём стрим
+        setStatus(STATUSES.MODEL_LOADING);
+        setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
+    }, [stopDraw, STATUSES.MODEL_LOADING]);
+
     return (
-      <div style={{ maxWidth: 700 }}>
-          <div style={{ marginBottom: 10 }}>
+      <div>
+          <div className="mb-6">
               <canvas
-                ref={canvasRef}
                 id="canvas"
+                ref={canvasRef}
                 width={VIDEO_WIDTH}
                 height={VIDEO_HEIGHT}
-                style={{ border: '1px solid #ddd' }}
               />
               <video
-                ref={videoRef}
                 id="video"
+                ref={videoRef}
                 width={VIDEO_WIDTH}
                 height={VIDEO_HEIGHT}
                 autoPlay
                 muted
                 playsInline
-                style={{ display: 'none' }}
+                className="hidden"
               />
           </div>
 
-          <div style={{ marginBottom: 10 }}>
-              <strong>Статус: </strong>
-              {status}
-          </div>
+          <div className="mb-4">{status}</div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          {/* Кнопки управления */}
+          <div className="flex flex-col gap-2">
+              {/* Остановка распознавания */}
               {status === STATUSES.DRAWING && (
                 <button
-                  className="text-white !bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
-                  onClick={stopDrawing} type="button">
+                  onClick={stopDraw}
+                  type="button"
+                  className="text-white !bg-blue-500 hover:bg-blue-800
+                       focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm
+                       px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700
+                       focus:outline-none dark:focus:ring-blue-800"
+                >
                     Остановить
                 </button>
               )}
+
+              {/* Запуск распознавания */}
               {status === STATUSES.DRAWING_STOP && (
                 <button
-                  className="text-white !bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
-                  onClick={startDrawing} type="button">
+                  onClick={startDraw}
+                  type="button"
+                  className="text-white !bg-blue-500 hover:bg-blue-800
+                       focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm
+                       px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700
+                       focus:outline-none dark:focus:ring-blue-800"
+                >
                     Запустить
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleSwitchCamera}
-                className="text-white !bg-green-500 hover:bg-green-700 focus:ring-4
+          </div>
+          <button
+            type="button"
+            onClick={handleSwitchCamera}
+            className="text-white !bg-green-500 hover:bg-green-700 focus:ring-4
                      focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2
                      dark:bg-green-600 dark:hover:bg-green-700 focus:outline-none
                      dark:focus:ring-green-800">
-                  Переключить камеру
-              </button>
-          </div>
+              Переключить камеру
+          </button>
       </div>
     );
 };
