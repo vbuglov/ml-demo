@@ -1,6 +1,7 @@
-# Stage 1: Сборка приложения
-FROM node:20 AS builder
+# --- ЭТАП 1: СБОРКА ПРИЛОЖЕНИЯ ---
+FROM node:20 AS build
 
+# Устанавливаем рабочую директорию
 WORKDIR /app
 
 # Копируем package.json и package-lock.json (если есть)
@@ -9,25 +10,23 @@ COPY package*.json ./
 # Устанавливаем зависимости
 RUN npm install
 
-# Копируем исходный код приложения
+# Копируем оставшиеся файлы проекта
 COPY . .
 
-# Собираем проект (убедитесь, что в package.json определён скрипт "build", например "vite build")
+# Сборка проекта
 RUN npm run build
 
-# Stage 2: Обслуживание с помощью nginx
-FROM nginx:alpine
+# --- ЭТАП 2: СЕРВИС НА NGINX ---
+FROM nginx:stable
 
-# Удаляем дефолтный конфиг nginx
-RUN rm /etc/nginx/conf.d/default.conf
-
-# Копируем собранные файлы из builder-стадии в стандартную директорию nginx
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Копируем кастомный конфигурационный файл nginx, который настраивает сервер на порт 5000
+# Копируем свой конфиг Nginx (с настройкой на порт 5000)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Копируем собранное приложение из этапа сборки
+COPY --from=build /app/dist /usr/share/nginx/html
 
 # Открываем порт 5000
 EXPOSE 5000
 
+# Запускаем Nginx
 CMD ["nginx", "-g", "daemon off;"]
