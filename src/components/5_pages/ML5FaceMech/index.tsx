@@ -4,7 +4,7 @@ import loadML5 from '../../../helpers/loadML5.js';
 // Иначе можно прописать напрямую – тогда нужно будет заменить loadML5 соответствующим кодом.
 
 const VIDEO_WIDTH = 320;
-const VIDEO_HEIGHT = 400;
+const VIDEO_HEIGHT = 350;
 
 const STATUSES = {
     ML5_LOADING: 'Загрузка ml5.js',
